@@ -3,23 +3,37 @@ import numpy as np
 from PIL import Image
 
 
-def start_image_object_detection():
+def start_video_object_detection():
     """
-    Анализ изображения
+    Захват и анализ видео
     """
+    # Захват картинки с видео
+    video_capture = cv2.VideoCapture("1.mp4")
 
-    try:
-        # Применение методов распознавания объектов на изображении от YOLO
-        image = cv2.imread("wRAH1SBIc-A.jpg")
-        image = apply_yolo_object_detection(image)
+    # Получение кадра и его свойств
+    ret, frame = video_capture.read()
+    height, width, depth = frame.shape
 
-        # Вывод обработанного изображения на экран
-        cv2.imshow("Image", image)
-        if cv2.waitKey(0):
-            cv2.destroyAllWindows()
+    # Создание итогового видео  
+    fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+    out_video = cv2.VideoWriter("2.avi", fourcc, 25, (width, height))
 
-    except KeyboardInterrupt:
-        pass
+    frame_id = 0
+    while video_capture.isOpened():
+        ret, frame = video_capture.read()
+        if not ret:
+            break
+
+        # Применение методов распознавания объектов на кадре видео от YOLO
+        frame = apply_yolo_object_detection(frame)
+        frame_id += 1
+        print(f"frame {frame_id}")
+        out_video.write(frame)
+
+    video_capture.release()
+    out_video.release()
+    print("Writer released")
+    cv2.destroyAllWindows()
 
 
 def apply_yolo_object_detection(image_to_process):
@@ -30,11 +44,18 @@ def apply_yolo_object_detection(image_to_process):
     """
 
     height, width, depth = image_to_process.shape
+
     # Масштабировать и изменить изображение, чтобы оно подходило для нейронной сети
     blob = cv2.dnn.blobFromImage(image_to_process, scalefactor=1/250, size=[608, 608], mean=(0, 0, 0),
                                  swapRB=True, crop=False)
     # Устанавливаем blob как входное значение для сети
     net.setInput(blob)
+
+    # Получаем все слои
+    layer_names = net.getLayerNames()
+    out_layers_indexes = net.getUnconnectedOutLayers()
+    out_layers = [layer_names[index - 1] for index in out_layers_indexes]
+
     # Получаем выходного значения сети
     outs = net.forward(out_layers)
 
@@ -65,7 +86,7 @@ def apply_yolo_object_detection(image_to_process):
                 class_indexes.append(class_index)
                 class_scores.append(float(class_score))
 
-    # Удаляем ограничивающие рамки, имеющие достоверность ниже 0.5
+    # Удаляем ограничивающие рамки, имеющие достоверность ниже 0.2
     chosen_boxes = cv2.dnn.NMSBoxes(boxes, class_scores, 0.0, 0.5)
     for box_index in chosen_boxes:
         box_index = box_index
@@ -90,26 +111,18 @@ def draw_object_bounding_box(image_to_process, box):
 
     # Координаты ограничивающего прямоугольника
     x, y, w, h = box
-    area = (x, y, x + w, y + h)
+    start = (x, y)
+    end = (x + w, y + h)
+    color = (0, 255, 0)
+    width = 2
+    final_image = cv2.rectangle(image_to_process, start, end, color, width)
 
-    # Обрезание изображения по заданной области
-    cv2.imwrite('image.jpg', image_to_process, [cv2.IMWRITE_JPEG_QUALITY, 100])
-    final_im = Image.open('image.jpg')
-    final_image_crop = final_im.crop(area)
-    final_image_crop.save('final_image.jpg', quality=95)
-    result_image = cv2.imread("final_image.jpg")
-
-    return result_image
+    return final_image
 
 
 if __name__ == '__main__':
     # Загрузка весов YOLO из файлов и настройка сети
     net = cv2.dnn.readNetFromDarknet("yolov4-csp.cfg", "yolov4-csp.weights")
-
-    # Получаем все слои
-    layer_names = net.getLayerNames()
-    out_layers_indexes = net.getUnconnectedOutLayers()
-    out_layers = [layer_names[index - 1] for index in out_layers_indexes]
 
     # Загрузка из файла классов объектов, которые умеет обнаруживать YOLO
     with open("coco.names.txt") as file:
@@ -118,4 +131,6 @@ if __name__ == '__main__':
     # Определение класса, поиск которого будет осуществляться
     class_to_look_for = "cat"
 
-    start_image_object_detection()
+    # start_image_object_detection()
+    start_video_object_detection()
+    
