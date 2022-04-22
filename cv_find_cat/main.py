@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from PIL import Image
 
 
 def start_video_object_detection():
@@ -16,7 +15,7 @@ def start_video_object_detection():
 
     # Создание итогового видео  
     fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
-    out_video = cv2.VideoWriter("2_cats_wall.avi", fourcc, 30, (width, height))
+    out_video = cv2.VideoWriter("result_2_cats_wall.avi", fourcc, 30, (width, height))
 
     frame_id = 0
     while video_capture.isOpened():
@@ -96,6 +95,9 @@ def apply_yolo_object_detection(image_to_process):
         for box_index in chosen_boxes.flatten():
             image_to_process = draw_object_bounding_box(image_to_process, boxes[box_index])
 
+    if len(chosen_boxes) > 0:
+        image_to_process = cut_frame(image_to_process, boxes, chosen_boxes)
+
     return image_to_process
 
 
@@ -116,6 +118,50 @@ def draw_object_bounding_box(image_to_process, box):
     final_image = cv2.rectangle(image_to_process, start, end, color, width)
 
     return final_image
+
+
+def cut_frame(image_to_process, boxes, chosen_boxes):
+    """
+    Обрезание по границам объекта
+    :param image_to_process: исходное изображение
+    :param boxes: координаты области вокруг объекта
+    :param chosen_boxes: координаты отрисованных контуров вокруг объекта
+    :return: изображение, обрезанное по области
+    """
+
+    mask = np.zeros(image_to_process.shape, dtype=np.uint8)
+    roi_corners = []
+    first_corner = []
+    second_corner = []
+    third_corner = []
+    forth_corner = []
+    roi_corners.append([])
+
+    for box_index in chosen_boxes.flatten():
+        x, y, w, h = boxes[box_index]
+        first_corner.append((x, y))
+        second_corner.append((x + w, y))
+        third_corner.append((x + w, y + h))
+        forth_corner.append((x, y + h))
+
+    # Определение границ рамки
+    min_first = tuple(np.array(first_corner).min(axis=0))
+    maxmin_second = [np.array(second_corner).max(axis=0)[0], np.array(second_corner).min(axis=0)[1]]
+    max_third = tuple(np.array(third_corner).max(axis=0))
+    minmax_forth = [np.array(forth_corner).min(axis=0)[0], np.array(forth_corner).max(axis=0)[1]]
+
+    roi_corners[-1].append(min_first)
+    roi_corners[-1].append(tuple(maxmin_second))
+    roi_corners[-1].append(max_third)
+    roi_corners[-1].append(tuple(minmax_forth))
+
+    # Сравнение изображения с маской, закрашивание участка вне рамки
+    channel_count = image_to_process.shape[2]
+    ignore_mask_color = (255,) * channel_count
+    cv2.fillPoly(mask, np.array(roi_corners, dtype=np.int32), ignore_mask_color)
+    masked_image = cv2.bitwise_and(image_to_process, mask)
+
+    return masked_image
 
 
 if __name__ == '__main__':
