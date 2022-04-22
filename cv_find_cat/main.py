@@ -2,37 +2,39 @@ import cv2
 import numpy as np
 
 
-def start_video_object_detection():
+def start_video_object_detection(path):
     """
     Захват и анализ видео
+    :param path: Путь до файла
     """
     # Захват картинки с видео
-    video_capture = cv2.VideoCapture("cats_wall.mp4")
+    video_capture = cv2.VideoCapture("path")
 
     # Получение кадра и его свойств
     ret, frame = video_capture.read()
-    height, width, depth = frame.shape
+    if ret:
+        height, width, depth = frame.shape
 
-    # Создание итогового видео  
-    fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
-    out_video = cv2.VideoWriter("result_2_cats_wall.avi", fourcc, 30, (width, height))
+        # Создание итогового видео
+        fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+        out_video = cv2.VideoWriter("result_file.avi", fourcc, 30, (width, height))
 
-    frame_id = 0
-    while video_capture.isOpened():
-        ret, frame = video_capture.read()
-        if not ret:
-            break
+        frame_id = 0
+        while video_capture.isOpened():
+            ret, frame = video_capture.read()
 
-        # Применение методов распознавания объектов на кадре видео от YOLO
-        frame = apply_yolo_object_detection(frame)
-        frame_id += 1
-        print(f"frame {frame_id}")
-        out_video.write(frame)
+            # Применение методов распознавания объектов на кадре видео от YOLO
+            frame = apply_yolo_object_detection(frame)
+            frame_id += 1
+            print(f"frame {frame_id}")
+            out_video.write(frame)
 
-    video_capture.release()
-    out_video.release()
-    print("Writer released")
-    cv2.destroyAllWindows()
+        video_capture.release()
+        out_video.release()
+        print("Writer released")
+        cv2.destroyAllWindows()
+    else:
+        print("Where isn't video file with this path")
 
 
 def apply_yolo_object_detection(image_to_process):
@@ -173,8 +175,10 @@ if __name__ == '__main__':
         classes = file.read().split("\n")
 
     # Определение класса, поиск которого будет осуществляться
-    class_to_look_for = "cat"
-
-    # start_image_object_detection()
-    start_video_object_detection()
+    class_to_look_for = input("Which class would you like to find?\n")
+    if class_to_look_for not in classes:
+        print("Where isn't such class!")
+    else:
+        path = input("Enter video file path\n")
+        start_video_object_detection(path)
     
