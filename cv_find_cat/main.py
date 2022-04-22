@@ -8,7 +8,7 @@ def start_video_object_detection():
     Захват и анализ видео
     """
     # Захват картинки с видео
-    video_capture = cv2.VideoCapture("1.mp4")
+    video_capture = cv2.VideoCapture("cats_wall.mp4")
 
     # Получение кадра и его свойств
     ret, frame = video_capture.read()
@@ -16,7 +16,7 @@ def start_video_object_detection():
 
     # Создание итогового видео  
     fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
-    out_video = cv2.VideoWriter("2.avi", fourcc, 25, (width, height))
+    out_video = cv2.VideoWriter("2_cats_wall.avi", fourcc, 30, (width, height))
 
     frame_id = 0
     while video_capture.isOpened():
@@ -60,7 +60,6 @@ def apply_yolo_object_detection(image_to_process):
     outs = net.forward(out_layers)
 
     boxes, class_scores, class_indexes = ([] for _ in range(3))
-    objects_count = 0
 
     # Запуск поиска объектов на изображении
     # Перебираем каждый из выходов слоя
@@ -86,17 +85,16 @@ def apply_yolo_object_detection(image_to_process):
                 class_indexes.append(class_index)
                 class_scores.append(float(class_score))
 
-    # Удаляем ограничивающие рамки, имеющие достоверность ниже 0.2
+    # Удаляем ограничивающие рамки, имеющие достоверность ниже 0.5
     chosen_boxes = cv2.dnn.NMSBoxes(boxes, class_scores, 0.0, 0.5)
     for box_index in chosen_boxes:
         box_index = box_index
-        box = boxes[box_index]
         class_index = class_indexes[box_index]
 
     # Рисуем объекты, входящие в искомый класс
     if classes[class_index] in class_to_look_for:
-        objects_count += 1
-        image_to_process = draw_object_bounding_box(image_to_process, box)
+        for box_index in chosen_boxes.flatten():
+            image_to_process = draw_object_bounding_box(image_to_process, boxes[box_index])
 
     return image_to_process
 
